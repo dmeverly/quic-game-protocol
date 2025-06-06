@@ -68,7 +68,10 @@ active to support new connection. Native behavior allows the server to support m
 # Extension
 The program is designed with several future extensions in mind. With minor changes, QGP can be extended to support multiple games
 or persistent connection to support repeated playthroughs of the same game. The send_protocol_error method can be extended for
-resend requests of invalid messages, or valid packages received during the incorrect connection state.
+resend requests of invalid messages, or valid packages received during the incorrect connection state.  Another obvious extension
+is to allow the client to choose difficulty levels. Othello contains multiple different AI models which vary in complexity. Some
+of the models are likely to outperform most novice Othello players.  I selected a model which performs well-enough to be
+challenging to defeat.
 
 # Proof of Concept
 This POC is meant to prove that GCP is capable of supporting game state messages across a network.  This is not a deployment-ready
@@ -76,4 +79,5 @@ implementation.  Note that login authentication, in its current state, will acce
 from the client.  Futhermore, certifications were taken from those provided by course instructor and are set to be ignored by
 QUIC TLS.  The program contains no security implementations and would be particularly vulnerable to DDOS attack unless the
 activity would be detected and mitigated via QUIC. Finally, the port number is bound to 12345 for both server and client, and 
-the gameName is hardcoded to support only the Othello game.
+the gameName is hardcoded to support only the Othello game.  The server is designed to never close except by interrupt
+or killing the terminal; a deployment-ready implementation should provide a way to close the server.
