@@ -112,7 +112,7 @@ async def serverProtocol(conn: EchoQuicConnection, stream_id: int):
                 )
                 continue
 
-            # ── STATE_INITIALIZATION ───────────────────────────────────────────────
+            # STATE_INITIALIZATION
             elif current_state == QGPState.STATE_INITIALIZATION:
                 if clientMsg.type != MsgType.LOGIN_RESPONSE:
                     await send_protocol_error(
@@ -137,30 +137,22 @@ async def serverProtocol(conn: EchoQuicConnection, stream_id: int):
                     QuicStreamEvent(stream_id, login_conf.to_bytes(), False)
                 )
 
-                # 2b) Immediately initialize a fresh Othello board and send it:
-                ctx.othello_state = OthelloState()  # new 8×8 starting position
+                ctx.othello_state = OthelloState()
+                ctx.player2 = MinimaxAgent(3)
                 # Build list of legal moves for player1
                 moves = ctx.othello_state.generateMoves(PLAYER1)
                 moves_list = [str(m) for m in moves]
 
-                # Send initial GAME_STATE (no FIN) with the board and valid moves:
+                # Send initial GAME_STATE with the board and valid moves
                 board_str = str(ctx.othello_state)
-                game_state_msg = QGPMessage(
-                    MsgType.GAME_STATE,
-                    board=board_str,
-                    moves=moves_list
-                )
+                game_state_msg = QGPMessage(MsgType.GAME_STATE,board=board_str,moves=moves_list)
                 print(f"{timestamp()} [server] Sending GAME_STATE: [initial board + {len(moves_list)} moves]")
-                await conn.send(
-                    QuicStreamEvent(stream_id, game_state_msg.to_bytes(), False)
-                )
+                await conn.send(QuicStreamEvent(stream_id, game_state_msg.to_bytes(), False))
                 continue
 
-            # ── STATE_ACTIVE ────────────────────────────────────────────────────────
+            #  STATE_ACTIVE 
             elif current_state == QGPState.STATE_ACTIVE:
-                # 3a) If client requests a move:
                 if clientMsg.type == MsgType.SEND_COMMAND:
-                    # The client must have sent “moveIndex” (an integer ≥ 0 or –1 for exit)
                     if "moveIndex" not in clientMsg.fields:
                         await send_protocol_error(
                             conn, stream_id,
@@ -168,27 +160,22 @@ async def serverProtocol(conn: EchoQuicConnection, stream_id: int):
                         )
                         return
 
-                    move_idx = clientMsg.fields.get("moveIndex")
-                    # If client typed -1 → they want to exit
+                    move_idx = clientMsg.fields["moveIndex"]
+                    # If client typed -1 → exit
                     if move_idx == -1:
-                        # Transition to CLOSED
-                        ctx.advanceState()
+                        ctx.advanceState()  # STATE_CLOSED
                         print(f"{timestamp()} [server] State change: {old_state.name} → {ctx.state.name}")
 
-                        goodbye = QGPMessage(
-                            MsgType.EXIT,
-                            message="Server says: Goodbye!"
-                        )
+                        goodbye = QGPMessage(MsgType.EXIT, message="Server says: Goodbye!")
                         print(f"{timestamp()} [server] Sending EXIT: {goodbye}")
                         await conn.send(QuicStreamEvent(stream_id, goodbye.to_bytes(), True))
                         conn.close()
+                        return
 
-                    # Otherwise, interpret move_idx as an index into the legal‐moves list
-                    legal_moves = ctx.othello_state.generateMoves(
-                        ctx.othello_state.nextPlayerToMove
-                    )
+                    # Otherwise, get the human’s legal moves
+                    legal_moves = ctx.othello_state.generateMoves(ctx.othello_state.nextPlayerToMove)
                     if (not isinstance(move_idx, int)) or move_idx < 0 or move_idx >= len(legal_moves):
-                        # Invalid index → resend same board + move list + error message
+                        # Invalid index → resend current board + moves + error
                         board_str = str(ctx.othello_state)
                         moves_list = [str(m) for m in legal_moves]
                         error_reply = QGPMessage(
@@ -197,19 +184,18 @@ async def serverProtocol(conn: EchoQuicConnection, stream_id: int):
                             moves=moves_list,
                             error="Invalid move, please choose again."
                         )
-                        print(f"{timestamp()} [server] Received invalid move index={move_idx}, resending board+move list with error")
-                        await conn.send(
-                            QuicStreamEvent(stream_id, error_reply.to_bytes(), False)
-                        )
+                        print(f"{timestamp()} [server] Received invalid move index={move_idx}, resending board+moves with error")
+                        await conn.send(QuicStreamEvent(stream_id, error_reply.to_bytes(), False))
                         continue  # stay in STATE_ACTIVE
 
-                    # If it was valid, apply it:
+                    # 2) Valid human move → apply it and record intermediateBoard
                     chosen_move: OthelloMove = legal_moves[move_idx]
                     ctx.othello_state.applyMove(chosen_move)
+                    intermediateBoard = str(ctx.othello_state)
+                    print(f"{timestamp()} [server] Applied human move {chosen_move}")
 
-                    # Now check if the game is over
+                    # 3) If game is now over (immediately after human move):
                     if ctx.othello_state.game_over():
-                        # Build final board + no more moves
                         board_str = str(ctx.othello_state)
                         final_msg = QGPMessage(
                             MsgType.GAME_STATE,
@@ -217,46 +203,100 @@ async def serverProtocol(conn: EchoQuicConnection, stream_id: int):
                             moves=[],
                             final="Game Over: winner = " + ctx.othello_state.winner()
                         )
-                        print(f"{timestamp()} [server] Game over after move {chosen_move}")
-                        await conn.send(
-                            QuicStreamEvent(stream_id, final_msg.to_bytes(), False)
-                        )
-                        continue
+                        print(f"{timestamp()} [server] Game over immediately after human move {chosen_move}")
+                        await conn.send(QuicStreamEvent(stream_id, final_msg.to_bytes(), False))
+                        continue  # remain in STATE_ACTIVE (client should send EXIT)
 
-                    # Otherwise, game not over, send updated board + new moves:
-                    next_legal_moves = ctx.othello_state.generateMoves(
-                        ctx.othello_state.nextPlayerToMove
-                    )
-                    next_moves_list = [str(m) for m in next_legal_moves]
+                    # 4) Let AI move (PLAYER2), build up error_text describing AI and any forced passes:
+                    error_text = ""
+                    next_player = ctx.othello_state.nextPlayerToMove  # should be PLAYER2
+                    ai_moves = ctx.othello_state.generateMoves(next_player)
+                    AImove = ctx.player2.choose_move(ctx.othello_state)
+                    ctx.othello_state.applyMove(AImove)
+                    error_text += f"Opponent applied move {AImove}\n"
+                    print(f"{timestamp()} [server] Opponent applied move {AImove}")
+
+                    while True:
+                        current_side = ctx.othello_state.nextPlayerToMove
+                        human_moves = ctx.othello_state.generateMoves(PLAYER1)
+                        ai_moves    = ctx.othello_state.generateMoves(PLAYER2)
+
+                        # (i) Neither side can move → game over
+                        if len(human_moves) == 0 and len(ai_moves) == 0:
+                            board_str = str(ctx.othello_state)
+                            final_msg = QGPMessage(
+                                MsgType.GAME_STATE,
+                                board=board_str,
+                                moves=[],
+                                final="Game Over: winner = " + ctx.othello_state.winner()
+                            )
+                            print(f"{timestamp()} [server] Game over after skipping turns")
+                            await conn.send(QuicStreamEvent(stream_id, final_msg.to_bytes(), False))
+                            return
+
+                        # Human’s turn but no moves → pass them, continue letting AI move again
+                        if current_side == PLAYER1 and len(human_moves) == 0:
+                            ctx.othello_state.applyMove(None)  
+                            error_text += "Human had no moves → passed\n"
+                            print(f"{timestamp()} [server] Human had no legal moves, passed")
+                            current_side = ctx.othello_state.nextPlayerToMove
+                            ai_moves     = ctx.othello_state.generateMoves(current_side)
+                            if len(ai_moves) == 0:
+                                #its a gameover state... go confirm it
+                                continue
+
+                            AImove = ctx.player2.choose_move(ctx.othello_state)
+                            ctx.othello_state.applyMove(AImove)
+                            error_text += f"Opponent applied move {AImove}\n"
+                            print(f"{timestamp()} [server] Opponent applied move {AImove}")
+                            continue
+
+                        if current_side == PLAYER1 and len(human_moves) > 0:
+                            break
+
+                        if current_side == PLAYER2 and len(ai_moves) > 0:
+                            AImove = ctx.player2.choose_move(ctx.othello_state)
+                            ctx.othello_state.applyMove(AImove)
+                            error_text += f"Opponent applied move {AImove}\n"
+                            print(f"{timestamp()} [server] Opponent applied move {AImove}")
+                            continue
+
                     board_str = str(ctx.othello_state)
+                    human_moves = ctx.othello_state.generateMoves(PLAYER1)
+                    human_moves_list = [str(m) for m in human_moves]
+
+                    # Trim trailing newline in error_text
+                    if error_text.endswith("\n"):
+                        error_text = error_text[:-1]
+
                     reply = QGPMessage(
                         MsgType.GAME_STATE,
                         board=board_str,
-                        moves=next_moves_list
+                        intermediateBoard=intermediateBoard,
+                        error=error_text if error_text else None,
+                        moves=human_moves_list
                     )
-                    print(f"{timestamp()} [server] Applied move {chosen_move}, sending updated board + {len(next_moves_list)} moves")
-                    await conn.send(
-                        QuicStreamEvent(stream_id, reply.to_bytes(), False)
-                    )
+                    print(f"{timestamp()} [server] Sending updated board + {len(human_moves_list)} moves to client")
+                    await conn.send(QuicStreamEvent(stream_id, reply.to_bytes(), False))
                     continue
 
-                # 3b) If client sends EXIT directly in ACTIVE:
                 elif clientMsg.type == MsgType.EXIT:
-                    ctx.advanceState()
+                    ctx.advanceState()  # → STATE_CLOSED
                     print(f"{timestamp()} [server] State change: {old_state.name} → {ctx.state.name}")
-                    goodbye = QGPMessage(
-                        MsgType.EXIT,
-                        message="Server says: Goodbye!"
-                    )
+                    goodbye = QGPMessage(MsgType.EXIT, message="Server says: Goodbye!")
                     print(f"{timestamp()} [server] Sending EXIT: {goodbye}")
                     await conn.send(QuicStreamEvent(stream_id, goodbye.to_bytes(), True))
                     conn.close()
-
-                else:
-                    await send_protocol_error(conn, stream_id,f"Expected SEND_COMMAND or EXIT in {current_state}, got {clientMsg.type}")
                     return
 
-            # ── STATE_CLOSED ─────────────────────────────────────────────────────────
+                else:
+                    await send_protocol_error(
+                        conn, stream_id,
+                        f"Expected SEND_COMMAND or EXIT in {current_state}, got {clientMsg.type}"
+                    )
+                    return
+
+            # STATE_CLOSED 
             elif current_state == QGPState.STATE_CLOSED:
                 return
 
@@ -279,7 +319,7 @@ async def serverProtocol(conn: EchoQuicConnection, stream_id: int):
 async def clientProtocol(scope: Dict, conn: EchoQuicConnection):
     ctx = ConnectionContext()
 
-    # ── STATE_PREINITIALIZATION: Send CLIENT_HELLO ───────────────────────────────
+    # STATE_PREINITIALIZATION: Send CLIENT_HELLO 
     if ctx.state != QGPState.STATE_PREINITIALIZATION:
         return
 
@@ -297,7 +337,7 @@ async def clientProtocol(scope: Dict, conn: EchoQuicConnection):
     ctx.advanceState()
     print(f"{timestamp()} [client] State change: {old_state.name} → {ctx.state.name}")
 
-    # ── STATE_INITIALIZATION: Expect SERVER_RESPONSE ────────────────────────────
+    #  STATE_INITIALIZATION: Expect SERVER_RESPONSE 
     ev = await conn.receive()
     serverMsg = QGPMessage.from_bytes(ev.data)
     if serverMsg.type != MsgType.SERVER_RESPONSE:
@@ -305,7 +345,7 @@ async def clientProtocol(scope: Dict, conn: EchoQuicConnection):
         return
     print(f"{timestamp()} [client] Received SERVER_RESPONSE: {serverMsg}")
 
-    # ── Still STATE_INITIALIZATION: Expect LOGIN_REQUEST ────────────────────────
+    #  STATE_INITIALIZATION: Expect LOGIN_REQUEST 
     ev = await conn.receive()
     serverMsg = QGPMessage.from_bytes(ev.data)
     if serverMsg.type != MsgType.LOGIN_REQUEST:
@@ -314,18 +354,14 @@ async def clientProtocol(scope: Dict, conn: EchoQuicConnection):
     prompt = serverMsg.fields.get("prompt", "")
     print(f"{timestamp()} [client] Received LOGIN_REQUEST, prompt: '{prompt}'")
 
-    # 3) Send LOGIN_RESPONSE (no FIN)
+    # 3) Send LOGIN_RESPONSE
     username = input("  Username: ").strip()
     password = input("  Password: ").strip()
-    login_resp = QGPMessage(
-        MsgType.LOGIN_RESPONSE,
-        username=username,
-        password=password
-    )
+    login_resp = QGPMessage(MsgType.LOGIN_RESPONSE,username=username,password=password)
     print(f"{timestamp()} [client] Sending LOGIN_RESPONSE: {login_resp}")
     await conn.send(QuicStreamEvent(sid, login_resp.to_bytes(), False))
 
-    # Remain in INITIALIZATION → now expect LOGIN_CONFIRM
+    # INITIALIZATION → now expect LOGIN_CONFIRM
     ev = await conn.receive()
     serverMsg = QGPMessage.from_bytes(ev.data)
     if serverMsg.type != MsgType.LOGIN_CONFIRM:
@@ -338,7 +374,7 @@ async def clientProtocol(scope: Dict, conn: EchoQuicConnection):
     ctx.advanceState()
     print(f"{timestamp()} [client] State change: {old_state.name} → {ctx.state.name}")
 
-    # ── STATE_ACTIVE: First, receive the initial GAME_STATE from server ──────────
+    # STATE_ACTIVE: First, receive the initial GAME_STATE from server
     while True:
         ev = await conn.receive()
         serverMsg = QGPMessage.from_bytes(ev.data)
@@ -346,14 +382,19 @@ async def clientProtocol(scope: Dict, conn: EchoQuicConnection):
         # Must be GAME_STATE or EXIT
         if serverMsg.type == MsgType.GAME_STATE:
             board_str = serverMsg.fields.get("board", "")
+            intermediateBoard = serverMsg.fields.get("intermediateBoard", None)
             moves_list = serverMsg.fields.get("moves", [])
             error_msg  = serverMsg.fields.get("error", None)
             final_msg  = serverMsg.fields.get("final", None)
+            
+            if intermediateBoard:
+                print(intermediateBoard)
+
+            if error_msg:
+                print(f"\n{timestamp()} [client] Message: {error_msg}")
 
             print(f"{timestamp()} [client] Received BOARD:\n{board_str}")
 
-            if error_msg:
-                print(f"{timestamp()} [client] ERROR: {error_msg}")
 
             if final_msg:
                 print(f"{timestamp()} [client] {final_msg}")
@@ -389,16 +430,12 @@ async def clientProtocol(scope: Dict, conn: EchoQuicConnection):
                 move_index = int(user_input)
             except ValueError:
                 print(f"{timestamp()} [client] Invalid input; you must type an integer index or -1.")
-                # ⇨ loop back and wait for the next GAME_STATE (which the server should re‐send with no change,
-                # but if the server doesn’t, the client simply waits again).
                 continue
 
             # Build and send SEND_COMMAND(moveIndex)
             cmd_msg = QGPMessage(MsgType.SEND_COMMAND, moveIndex=move_index)
             print(f"{timestamp()} [client] Sending SEND_COMMAND: {cmd_msg}")
             await conn.send(QuicStreamEvent(sid, cmd_msg.to_bytes(), False))
-
-            # Now loop back and wait for the next PDU (GAME_STATE or EXIT) from server
             continue
 
         elif serverMsg.type == MsgType.EXIT:
