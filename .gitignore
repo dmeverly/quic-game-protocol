@@ -1,1 +1,20 @@
-.env
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+*.pyo
+*.pyd
+*.pyc
+
+# VS Code
+.vscode/
+
+# Windows
+Thumbs.db
+.DS_Store
+
+# Certificates
+certs/
+*.pem
+*.key
