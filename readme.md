@@ -133,14 +133,70 @@ active to support new connection. Native behavior allows the server to support m
 
 # Examples  
 
-<div style="text-align: center;">
-  <img src="/screenshots/s1.png" alt="Server" style="width: 80%; max-width: 800px; margin-bottom: 1em;">
-  <img src="/screenshots/c1.png" alt="Client" style="width: 80%; max-width: 800px; margin-bottom: 1em;">
-  <img src="/screenshots/2.png" alt="Authentication" style="width: 80%; max-width: 800px; margin-bottom: 1em;">
-  <img src="/screenshots/3.png" alt="Game State" style="width: 80%; max-width: 800px; margin-bottom: 1em;">
-  <img src="/screenshots/4.png" alt="New Game State" style="width: 80%; max-width: 800px; margin-bottom: 1em;">
-  <img src="/screenshots/5.png" alt="Exit" style="width: 80%; max-width: 800px; margin-bottom: 1em;">
+<div style="display: flex; flex-direction: column; gap: 2em; align-items: center;">
+
+  <!-- Row 1 -->
+  <div style="display: flex; gap: 2em; justify-content: center; flex-wrap: wrap;">
+    <div>
+      <img src="/screenshots/c1.png" alt="Client 1" style="width: 100%; max-width: 400px;">
+      <p style="text-align: center;">Client - Step 1</p>
+    </div>
+    <div>
+      <img src="/screenshots/s1.png" alt="Server 1" style="width: 100%; max-width: 400px;">
+      <p style="text-align: center;">Server - Step 1</p>
+    </div>
+  </div>
+
+  <!-- Row 2 -->
+  <div style="display: flex; gap: 2em; justify-content: center; flex-wrap: wrap;">
+    <div>
+      <img src="/screenshots/c2.png" alt="Client 2" style="width: 100%; max-width: 400px;">
+      <p style="text-align: center;">Client - Step 2</p>
+    </div>
+    <div>
+      <img src="/screenshots/s2.png" alt="Server 2" style="width: 100%; max-width: 400px;">
+      <p style="text-align: center;">Server - Step 2</p>
+    </div>
+  </div>
+
+  <!-- Row 3 -->
+  <div style="display: flex; gap: 2em; justify-content: center; flex-wrap: wrap;">
+    <div>
+      <img src="/screenshots/c3.png" alt="Client 3" style="width: 100%; max-width: 400px;">
+      <p style="text-align: center;">Client - Step 3</p>
+    </div>
+    <div>
+      <img src="/screenshots/s3.png" alt="Server 3" style="width: 100%; max-width: 400px;">
+      <p style="text-align: center;">Server - Step 3</p>
+    </div>
+  </div>
+
+  <!-- Row 4 -->
+  <div style="display: flex; gap: 2em; justify-content: center; flex-wrap: wrap;">
+    <div>
+      <img src="/screenshots/c4.png" alt="Client 4" style="width: 100%; max-width: 400px;">
+      <p style="text-align: center;">Client - Step 4</p>
+    </div>
+    <div>
+      <img src="/screenshots/s4.png" alt="Server 4" style="width: 100%; max-width: 400px;">
+      <p style="text-align: center;">Server - Step 4</p>
+    </div>
+  </div>
+
+  <!-- Row 5 -->
+  <div style="display: flex; gap: 2em; justify-content: center; flex-wrap: wrap;">
+    <div>
+      <img src="/screenshots/c5.png" alt="Client 5" style="width: 100%; max-width: 400px;">
+      <p style="text-align: center;">Client - Step 5</p>
+    </div>
+    <div>
+      <img src="/screenshots/s5.png" alt="Server 5" style="width: 100%; max-width: 400px;">
+      <p style="text-align: center;">Server - Step 5</p>
+    </div>
+  </div>
+
 </div>
+
 
 # Results and Conclusion
 The program is a demonstration of a state-aware application layer protocol implementation over QUIC
