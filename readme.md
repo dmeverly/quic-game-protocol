@@ -1,9 +1,12 @@
-## Python QUIC Shell
+## QUIC Game Protocol: An Application Layer Demonstration
 
-Author: David Everly
-Date: June 2025
+**Author**: David Everly  
+**Language**: Python  
+**Version**: 1 
 
-# Description
+---
+
+# Description  
 QGP.py is a script which supports a proof-of-concept (POC) implementation of the Quick Game Protocol over QUIC.
 In brief, the script defines the PDU and DFA, as well as common class definitions in pdu.py and connectionContext.py.
 With QGP running on two separate terminals, server and client, the script is designed to send communications from one terminal
@@ -16,21 +19,56 @@ As proof of concept, QGP was configured to support a minimal implementation of t
 rules and valid moves can easily be found elsewhere and are generally not within the scope of the POC for QGP. The game
 states are send from the server with each new iteration, while user inputs are sent from the client. 
 
-# Language
-Python
 
-# Dependencies
-1. Install dependencies with pip (requirements.txt) is provided
-2. The certs in the ./certs directory
+## Table of Contents
+- [Installation](#installation)
+- [Usage](#usage)
+- [Features](#features)
+- [Configuration](#configuration)
+- [Examples](#examples)
+- [Results and Conclusion](#results-and-conclusion)
+- [Future Work and Extension](#future-work-and-extension)
+- [References](#references)
+- [Contributing](#contributing)
+- [Licenses](#licenses)
 
-# Execution
+# Installation
+Dependencies:   
+aioquic==1.0.0
+asyncio==3.4.3
+attrs==23.2.0
+certifi==2024.2.2
+cffi==1.16.0
+cryptography==42.0.5
+dnslib==0.9.24
+pyasn1==0.5.1
+pyasn1-modules==0.3.0
+pycparser==2.21
+pylsqpack==0.3.18
+pyOpenSSL==24.1.0
+service-identity==24.1.0
+
+Install using:  
+```bash
+pip install -r requirements.txt  
+```  
+
+Temporary certifications are in the certs directory
+
+# Usage
 Program is intended to be run using Unix-like terminal such as Linux, macOS Terminal (untested), or MINGW64 (Git Bash) on Windows.
 For convenience, executable shell scripts are provided.
 
 On two separate Unix-compatible terminals
 
-to run server: ./server
-to run client: ./client
+to run server: 
+```bash
+./server
+```
+to run client: 
+```bash
+./client
+```
 
 Run the server first and wait for the server listening message to run the client.  When the client runs, the user is asked for
 the server's IP address.  Note that the server prints its local IP address.  Enter the IP address as shown on the server terminal
@@ -42,7 +80,8 @@ server and client exchange game states and game commands respectively.  The conn
 client request to exit.  Once the game completes, the final game state and results are displayed and the connection termination
 process begins.
 
-# Game Coordinates
+# Features  
+## Game Coordinates
 The coordinate system of the game board is zero-indexed, starting in the top left corner and moving top->bottom and left->right
 Moves are listed in y,x order so:
 
@@ -70,7 +109,8 @@ Move x to 5,3 corresponds to:
 ........  
 ........  
 
-# PDU
+# Configuration  
+## PDU
 Valid PDUs used to progres through the DFA are provided for reference:
     CLIENT_HELLO    
     SERVER_RESPONSE 
@@ -81,7 +121,7 @@ Valid PDUs used to progres through the DFA are provided for reference:
     GAME_STATE      
     EXIT            
 
-# DFA
+## DFA
 PDUs signal progression to the next state as follors:
     STATE_PREINITIALIZATION - prior to CLIENT_HELLO, ends with SERVER_RESPONSE
     STATE_INITIALIZATION    - begins with SERVER_RESPONSE and continues until LOGIN_CONFIRM
@@ -91,15 +131,13 @@ PDUs signal progression to the next state as follors:
 Connection termination behavior differs between client and server.  While the client exits the program, the server remains
 active to support new connection. Native behavior allows the server to support multiple connections concurrently.
 
-# Extension
-The program is designed with several future extensions in mind. With minor changes, QGP can be extended to support multiple games
-or persistent connection to support repeated playthroughs of the same game. The send_protocol_error method can be extended for
-resend requests of invalid messages, or valid packages received during the incorrect connection state.  Another obvious extension
-is to allow the client to choose difficulty levels. Othello contains multiple different AI models which vary in complexity. Some
-of the models are likely to outperform most novice Othello players.  I selected a model which performs well-enough to be
-challenging to defeat.
+# Examples  
 
-# Proof of Concept
+
+# Results and Conclusion
+The program is a demonstration of a state-aware application layer protocol implementation over QUIC
+
+## Proof of Concept
 This POC is meant to prove that GCP is capable of supporting game state messages across a network.  This is not a deployment-ready
 implementation.  Note that login authentication, in its current state, will accept and confirm any username or password string sent 
 from the client.  Futhermore, certifications were taken from those provided by course instructor and are set to be ignored by
@@ -107,3 +145,20 @@ QUIC TLS.  The program contains no security implementations and would be particu
 activity would be detected and mitigated via QUIC. Finally, the port number is bound to 12345 for both server and client, and 
 the gameName is hardcoded to support only the Othello game.  The server is designed to never close except by interrupt
 or killing the terminal; a deployment-ready implementation should provide a way to close the server.
+
+# Future Work and Extension  
+The program is designed with several future extensions in mind. With minor changes, QGP can be extended to support multiple games
+or persistent connection to support repeated playthroughs of the same game. The send_protocol_error method can be extended for
+resend requests of invalid messages, or valid packages received during the incorrect connection state.  Another obvious extension
+is to allow the client to choose difficulty levels. Othello contains multiple different AI models which vary in complexity. Some
+of the models are likely to outperform most novice Othello players.  I selected a model which performs well-enough to be
+challenging to defeat.
+
+# References  
+No external sources were used. However, LLM queries assisted with architectural design and debugging.  
+
+# Contributing  
+Code architecture was built over a minimal template which was provided to me by Drexel University during Graduate studies in 2025.
+
+# Licenses  
+None
