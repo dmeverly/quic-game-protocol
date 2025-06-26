@@ -133,6 +133,12 @@ active to support new connection. Native behavior allows the server to support m
 
 # Examples  
 
+![Server](/screenshots/s1.png)
+![Client](/screenshots/c1.png)
+![Authentiation](/screenshots/2.png)
+![Game_State](/screenshots/3.png)
+![New_Game_State](/screenshots/4.png)
+![Exit](/screenshots/5.png)
 
 # Results and Conclusion
 The program is a demonstration of a state-aware application layer protocol implementation over QUIC
