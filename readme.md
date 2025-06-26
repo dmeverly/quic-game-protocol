@@ -2,8 +2,6 @@
 
 Author: David Everly
 Date: June 2025
-Submitted as partial requirement for completion of CS 544 - Computer Networks
-Drexel University
 
 # Description
 QGP.py is a script which supports a proof-of-concept (POC) implementation of the Quick Game Protocol over QUIC.
