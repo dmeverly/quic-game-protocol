@@ -1,12 +1,13 @@
-## QUIC Game Protocol: An Application Layer Demonstration
+# QUIC Game Protocol: An Application Layer Demonstration
 
 **Author**: David Everly  
 **Language**: Python  
 **Version**: 1 
 
+### <a href="https://www.dmeverly.com/completedprojects/QUIC/" style="display: block; text-align:right;" target = "_blank">  Project Overview -> </a> 
 ---
 
-# Description  
+## Description  
 QGP.py is a script which supports a proof-of-concept (POC) implementation of the Quick Game Protocol over QUIC.
 In brief, the script defines the PDU and DFA, as well as common class definitions in pdu.py and connectionContext.py.
 With QGP running on two separate terminals, server and client, the script is designed to send communications from one terminal
@@ -19,20 +20,18 @@ As proof of concept, QGP was configured to support a minimal implementation of t
 rules and valid moves can easily be found elsewhere and are generally not within the scope of the POC for QGP. The game
 states are send from the server with each new iteration, while user inputs are sent from the client. 
 
-
 ## Table of Contents
 - [Installation](#installation)
 - [Usage](#usage)
 - [Features](#features)
 - [Configuration](#configuration)
 - [Examples](#examples)
-- [Results and Conclusion](#results-and-conclusion)
 - [Future Work and Extension](#future-work-and-extension)
 - [References](#references)
 - [Contributing](#contributing)
 - [Licenses](#licenses)
 
-# Installation
+## Installation
 Dependencies:
 - aioquic==1.0.0
 - asyncio==3.4.3
@@ -55,7 +54,7 @@ pip install -r requirements.txt
 
 Temporary certifications are in the certs directory
 
-# Usage
+## Usage
 Program is intended to be run using Unix-like terminal such as Linux, macOS Terminal (untested), or MINGW64 (Git Bash) on Windows.
 For convenience, executable shell scripts are provided.
 
@@ -80,8 +79,8 @@ server and client exchange game states and game commands respectively.  The conn
 client request to exit.  Once the game completes, the final game state and results are displayed and the connection termination
 process begins.
 
-# Features  
-## Game Coordinates
+## Features  
+### Game Coordinates
 The coordinate system of the game board is zero-indexed, starting in the top left corner and moving top->bottom and left->right
 Moves are listed in y,x order so:
 
@@ -113,8 +112,8 @@ Move x to 5,3 corresponds to:
 ........  
 ```
 
-# Configuration  
-## PDU
+## Configuration  
+### PDU
 Valid PDUs used to progres through the DFA are provided for reference:
     CLIENT_HELLO    
     SERVER_RESPONSE 
@@ -125,7 +124,7 @@ Valid PDUs used to progres through the DFA are provided for reference:
     GAME_STATE      
     EXIT            
 
-## DFA
+### DFA
 PDUs signal progression to the next state as follors:
     STATE_PREINITIALIZATION - prior to CLIENT_HELLO, ends with SERVER_RESPONSE
     STATE_INITIALIZATION    - begins with SERVER_RESPONSE and continues until LOGIN_CONFIRM
@@ -135,7 +134,7 @@ PDUs signal progression to the next state as follors:
 Connection termination behavior differs between client and server.  While the client exits the program, the server remains
 active to support new connection. Native behavior allows the server to support multiple connections concurrently.
 
-# Examples  
+## Examples  
 
 <div style="display: flex; flex-direction: column; gap: 2em; align-items: center;">
 
@@ -201,9 +200,13 @@ active to support new connection. Native behavior allows the server to support m
 
 </div>
 
-
-# Results and Conclusion
-The program is a demonstration of a state-aware application layer protocol implementation over QUIC
+# Future Work and Extension  
+The program is designed with several future extensions in mind. With minor changes, QGP can be extended to support multiple games
+or persistent connection to support repeated playthroughs of the same game. The send_protocol_error method can be extended for
+resend requests of invalid messages, or valid packages received during the incorrect connection state.  Another obvious extension
+is to allow the client to choose difficulty levels. Othello contains multiple different AI models which vary in complexity. Some
+of the models are likely to outperform most novice Othello players.  I selected a model which performs well-enough to be
+challenging to defeat.  
 
 ## Proof of Concept
 This POC is meant to prove that GCP is capable of supporting game state messages across a network.  This is not a deployment-ready
@@ -214,21 +217,11 @@ activity would be detected and mitigated via QUIC. Finally, the port number is b
 the gameName is hardcoded to support only the Othello game.  The server is designed to never close except by interrupt
 or killing the terminal; a deployment-ready implementation should provide a way to close the server.
 
-# Future Work and Extension  
-The program is designed with several future extensions in mind. With minor changes, QGP can be extended to support multiple games
-or persistent connection to support repeated playthroughs of the same game. The send_protocol_error method can be extended for
-resend requests of invalid messages, or valid packages received during the incorrect connection state.  Another obvious extension
-is to allow the client to choose difficulty levels. Othello contains multiple different AI models which vary in complexity. Some
-of the models are likely to outperform most novice Othello players.  I selected a model which performs well-enough to be
-challenging to defeat.
-
-# References  
+## References  
 No external sources were used. However, LLM queries assisted with architectural design and debugging.  
 
-# Contributing  
+## Contributing  
 Code architecture was built over a minimal template which was provided to me by Drexel University during Graduate studies in 2025.
 
-# Licenses  
+## Licenses  
 None
-
-<a href="https://www.dmeverly.com/completedprojects/QUIC/" style="display: block; text-align:right;" target = "_blank">  Project Overview -> </a> 
